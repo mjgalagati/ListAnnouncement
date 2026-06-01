@@ -1,26 +1,26 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Icon, SearchBox, DatePicker, IconButton } from '@fluentui/react';
-import { ITabbedAnnouncement } from '../models/ITabbedAnnouncement';
+import { IListAnnouncement } from '../models/IListAnnouncement';
 import styles from './ViewAllPanel.module.scss';
 import { useState } from 'react';
 
 interface ViewAllPanelProps {
-  announcements: ITabbedAnnouncement[];
+  announcements: IListAnnouncement[];
   isOpen: boolean;
   onDismiss: () => void;
-  onSelectTabbedAnnouncement: (announcement: ITabbedAnnouncement) => void;
-  onAddTabbedAnnouncement?: () => void;
-  highlightTypesList: string[];
+  onSelectAnnouncement: (announcement: IListAnnouncement) => void;
+  onAddAnnouncement?: () => void;
+  categoryList: string[];
 }
 
 const TYPE_COLORS = ['#2e7d32','#1565c0','#6a1b9a','#e65100','#00838f','#ad1457','#c62828','#37474f'];
 
 const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
-  announcements, isOpen, onDismiss, onSelectTabbedAnnouncement, onAddTabbedAnnouncement, highlightTypesList,
+  announcements, isOpen, onDismiss, onSelectAnnouncement, onAddAnnouncement, categoryList,
 }): JSX.Element => {
   const getTypeColor = (type: string): string => {
-    const idx = highlightTypesList.findIndex(t => t.toLowerCase() === type?.trim().toLowerCase());
+    const idx = categoryList.findIndex(t => t.toLowerCase() === type?.trim().toLowerCase());
     return idx >= 0 ? TYPE_COLORS[idx % TYPE_COLORS.length] : TYPE_COLORS[0];
   };
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -60,30 +60,24 @@ const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
     return styles.statusDraft;
   };
 
-  const getPriorityClass = (priority: string): string => {
-    if (priority === 'Critical') return styles.priorityCritical;
-    if (priority === 'High')     return styles.priorityHigh;
-    if (priority === 'Medium')   return styles.priorityMedium;
-    return styles.priorityLow;
-  };
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>): void => {
     if (e.target === e.currentTarget) onDismiss();
   };
 
-  const renderTabbedAnnouncementCard = (announcement: ITabbedAnnouncement): JSX.Element => (
+  const renderAnnouncementCard = (announcement: IListAnnouncement): JSX.Element => (
     <div
       key={announcement.Id}
-      className={styles.tabbedAnnouncementCard}
-      onClick={() => onSelectTabbedAnnouncement(announcement)}
+      className={styles.announcementCard}
+      onClick={() => onSelectAnnouncement(announcement)}
     >
       <div className={styles.cardContent}>
         <div className={styles.cardHeader}>
           <h3 className={styles.cardTitle}>{announcement.Title}</h3>
           <div className={styles.cardBadges}>
-            <span className={`${styles.priorityBadge} ${getPriorityClass(announcement.Priority)}`}>
-              {announcement.Priority}
-            </span>
+            {announcement.Priority === 'Pinned' && (
+              <span className={styles.pinnedBadge}>📌 Pinned</span>
+            )}
             <span className={`${styles.statusBadge} ${getStatusClass(announcement.Status)}`}>
               {announcement.Status}
             </span>
@@ -116,11 +110,11 @@ const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
         {/* ── Header ── */}
         <div className={styles.panelHeader}>
           <div className={styles.headerTop}>
-            <h2 className={styles.panelTitle}>All Tabbed Announcements</h2>
+            <h2 className={styles.panelTitle}>All Announcements</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {onAddTabbedAnnouncement && (
-                <button className={styles.addButton} onClick={onAddTabbedAnnouncement}>
-                  <Icon iconName="Add" /> Add Highlight
+              {onAddAnnouncement && (
+                <button className={styles.addButton} onClick={onAddAnnouncement}>
+                  <Icon iconName="Add" /> Add Announcement
                 </button>
               )}
               <button className={styles.closeBtn} onClick={onDismiss} aria-label="Close">
@@ -131,7 +125,7 @@ const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
 
           <div className={styles.filterBar}>
             <SearchBox
-              placeholder="Search tabbed announcements..."
+              placeholder="Search announcements..."
               onChange={(_, newValue) => setSearchQuery(newValue || '')}
               className={styles.searchBox}
             />
@@ -191,8 +185,8 @@ const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
             </div>
           )}
 
-          <div className={styles.tabbedAnnouncementCount}>
-            <span>{filteredAnnouncements.length} tabbed announcement{filteredAnnouncements.length !== 1 ? 's' : ''} found</span>
+          <div className={styles.announcementCount}>
+            <span>{filteredAnnouncements.length} announcement{filteredAnnouncements.length !== 1 ? 's' : ''} found</span>
           </div>
         </div>
 
@@ -201,31 +195,31 @@ const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
           {filteredAnnouncements.length === 0 && (
             <div className={styles.emptyState}>
               <Icon iconName="Megaphone" className={styles.emptyIcon} />
-              <p>No tabbed announcements found</p>
-              <span>Try adjusting your search or add a new tabbed announcement</span>
+              <p>No announcements found</p>
+              <span>Try adjusting your search or add a new announcement</span>
             </div>
           )}
 
           {publishedAnnouncements.length > 0 && (
-            <div className={styles.tabbedAnnouncementSection}>
+            <div className={styles.announcementSection}>
               <div className={styles.sectionHeader}>
                 <Icon iconName="MegaphoneSolid" className={styles.sectionIcon} />
                 <h3>Published ({publishedAnnouncements.length})</h3>
               </div>
-              <div className={styles.tabbedAnnouncementGrid}>
-                {publishedAnnouncements.map(renderTabbedAnnouncementCard)}
+              <div className={styles.announcementGrid}>
+                {publishedAnnouncements.map(renderAnnouncementCard)}
               </div>
             </div>
           )}
 
           {draftAnnouncements.length > 0 && (
-            <div className={styles.tabbedAnnouncementSection}>
+            <div className={styles.announcementSection}>
               <div className={styles.sectionHeader}>
                 <Icon iconName="Edit" className={styles.sectionIcon} />
                 <h3>Draft ({draftAnnouncements.length})</h3>
               </div>
-              <div className={styles.tabbedAnnouncementGrid}>
-                {draftAnnouncements.map(renderTabbedAnnouncementCard)}
+              <div className={styles.announcementGrid}>
+                {draftAnnouncements.map(renderAnnouncementCard)}
               </div>
             </div>
           )}

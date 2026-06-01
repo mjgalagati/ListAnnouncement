@@ -1,4 +1,4 @@
-declare interface ITabbedAnnouncementWebPartStrings {
+declare interface IListAnnouncementWebPartStrings {
   PropertyPaneDescription: string;
   BasicGroupName: string;
   DescriptionFieldLabel: string;
@@ -13,7 +13,7 @@ declare interface ITabbedAnnouncementWebPartStrings {
   UnknownEnvironment: string;
 }
 
-declare module 'TabbedAnnouncementWebPartStrings' {
-  const strings: ITabbedAnnouncementWebPartStrings;
+declare module 'ListAnnouncementWebPartStrings' {
+  const strings: IListAnnouncementWebPartStrings;
   export = strings;
 }

@@ -220,7 +220,7 @@
   letter-spacing: 0.6px;
 }
 
-.tabbedAnnouncementTitle {
+.announcementTitle {
   font-size: 1.9em;
   font-weight: 800;
   margin: 0 0 10px 0;
@@ -414,20 +414,18 @@
 .statusActive    { background: #dff6dd; color: #0b5a08;  border: 1px solid #107c10; }
 .statusExpired   { background: #f3f2f1; color: #323130;  border: 1px solid #c8c6c4; }
 
-.priorityBadge {
-  display: inline-block;
-  padding: 5px 12px;
+.pinnedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
   border-radius: 6px;
-  font-size: 0.82em;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 0.78em;
+  font-weight: 700;
+  background: #fff4ce;
+  color: #7a5400;
+  border: 1px solid #e8a000;
 }
-
-.priorityCritical { background: #fde7e9; color: #a4262c; border: 1px solid #a4262c; }
-.priorityHigh     { background: #fff4ce; color: #8a4500; border: 1px solid #c8500a; }
-.priorityMedium   { background: #e1f5fe; color: #01579b; border: 1px solid #0078d4; }
-.priorityLow      { background: #f3f2f1; color: #605e5c; border: 1px solid #c8c6c4; }
 
 // ─── Responsive ───────────────────────────────────────────────────────────────
 @media (max-width: 900px) {
@@ -442,7 +440,7 @@
   .bannerOverlayContent { padding: 20px 18px; }
   .bannerTitle { font-size: 1.5em; }
   .content { padding: 18px 16px; }
-  .tabbedAnnouncementTitle { font-size: 1.5em; }
+  .announcementTitle { font-size: 1.5em; }
   .headerNoBanner { flex-direction: column; }
   .infoRow { flex-direction: column; gap: 4px; }
   .value { text-align: left; }

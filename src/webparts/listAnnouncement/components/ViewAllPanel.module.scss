@@ -172,7 +172,7 @@
   &:hover { background-color: #e1dfdd; }
 }
 
-.tabbedAnnouncementCount {
+.announcementCount {
   font-size: 0.82em;
   color: #605e5c;
   font-weight: 500;
@@ -190,7 +190,7 @@
 }
 
 // ─── Sections ─────────────────────────────────────────────────────────────────
-.tabbedAnnouncementSection {
+.announcementSection {
   margin-bottom: 28px;
   &:last-child { margin-bottom: 0; }
 }
@@ -211,14 +211,12 @@
   }
 }
 
-.sectionIcon       { color: #0078d4; font-size: 18px; }
-.sectionIconCritical { color: #a4262c; font-size: 18px; }
-.sectionIconHigh   { color: #FF5E00; font-size: 18px; }
+.sectionIcon { color: #0078d4; font-size: 18px; }
 
-.tabbedAnnouncementGrid { display: grid; gap: 14px; }
+.announcementGrid { display: grid; gap: 14px; }
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
-.tabbedAnnouncementCard {
+.announcementCard {
   background: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 10px;
@@ -309,19 +307,15 @@
   font-weight: 500;
 }
 
-.priorityBadge {
+.pinnedBadge {
   padding: 3px 8px;
   border-radius: 10px;
   font-size: 0.7em;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-weight: 700;
+  background: #fff4ce;
+  color: #7a5400;
+  border: 1px solid #e8a000;
 }
-
-.priorityCritical { background: #fde7e9; color: #a4262c; border: 1px solid #a4262c; }
-.priorityHigh     { background: #fff4ce; color: #8a4500; border: 1px solid #c8500a; }
-.priorityMedium   { background: #e1f5fe; color: #01579b; border: 1px solid #0078d4; }
-.priorityLow      { background: #f3f2f1; color: #605e5c; border: 1px solid #c8c6c4; }
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
 .emptyState {

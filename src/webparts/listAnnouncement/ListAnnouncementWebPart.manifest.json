@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
-  "id": "b0c21b3e-94dc-4b71-88dc-d5eb1f56ec9f",
-  "alias": "TabbedAnnouncementWebPart",
+  "id": "391b37fd-54cf-4168-854e-6523499be4a9",
+  "alias": "ListAnnouncementWebPart",
   "componentType": "WebPart",
 
   "version": "*",
@@ -15,11 +15,11 @@
   "preconfiguredEntries": [{
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
     "group": { "default": "Advanced" },
-    "title": { "default": "Tabbed Announcement" },
-    "description": { "default": "Tabbed Announcement description" },
+    "title": { "default": "List Announcement" },
+    "description": { "default": "List Announcement description" },
     "officeFabricIconFontName": "Page",
     "properties": {
-      "description": "Tabbed Announcement"
+      "description": "List Announcement"
     }
   }]
 }

@@ -6,10 +6,10 @@ import "@pnp/sp/files";
 import "@pnp/sp/folders";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
-import { ITabbedAnnouncement, ITabbedAnnouncementAttachment, ITabbedAnnouncementAudience } from "../models/ITabbedAnnouncement";
+import { IListAnnouncement, IListAnnouncementAttachment, IListAnnouncementAudience } from "../models/IListAnnouncement";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 
-interface ITabbedAnnouncementListItem {
+interface IListAnnouncementListItem {
   Id: number;
   Title: string;
   Body?: string;
@@ -18,14 +18,14 @@ interface ITabbedAnnouncementListItem {
   Priority: string;
   Status: string;
   TargetAudienceType?: string;
-  TargetAudience?: ITabbedAnnouncementAudience[];
+  TargetAudience?: IListAnnouncementAudience[];
   BannerImageUrl?: { Url: string; Description?: string };
   Author?: { Id: number; Title: string };
   AttachmentFiles?: { FileName: string; ServerRelativeUrl: string }[];
   Created: string;
 }
 
-interface ITabbedAnnouncementItemData {
+interface IListAnnouncementItemData {
   Title: string;
   Body: string;
   HighlightType: string;
@@ -37,14 +37,8 @@ interface ITabbedAnnouncementItemData {
   BannerImageUrl?: { Url: string; Description: string } | undefined;
 }
 
-const PRIORITY_ORDER: Record<string, number> = {
-  Critical: 0,
-  High: 1,
-  Medium: 2,
-  Low: 3,
-};
 
-export class TabbedAnnouncementService {
+export class ListAnnouncementService {
   private listName: string;
   private sp: SPFI;
 
@@ -53,7 +47,7 @@ export class TabbedAnnouncementService {
     this.sp = spfi().using(SPFx(context));
   }
 
-  public async getTabbedAnnouncements(): Promise<ITabbedAnnouncement[]> {
+  public async getListAnnouncements(): Promise<IListAnnouncement[]> {
     let currentUserTitle = "";
     try {
       const currentUser = await this.sp.web.currentUser.select("Title")();
@@ -62,7 +56,7 @@ export class TabbedAnnouncementService {
       console.warn("Could not fetch current user title");
     }
 
-    const items: ITabbedAnnouncementListItem[] = await this.sp.web.lists
+    const items: IListAnnouncementListItem[] = await this.sp.web.lists
       .getByTitle(this.listName)
       .items.select(
         "Id", "Title", "Body", "HighlightType", "Site",
@@ -73,13 +67,13 @@ export class TabbedAnnouncementService {
       )
       .expand("TargetAudience", "Author", "AttachmentFiles")();
 
-    const highlights: ITabbedAnnouncement[] = items.map((i) => ({
+    const announcements: IListAnnouncement[] = items.map((i) => ({
       Id: i.Id,
       Title: i.Title,
       Body: i.Body,
       HighlightType: i.HighlightType,
       Site: i.Site,
-      Priority: i.Priority as "Critical" | "High" | "Medium" | "Low",
+      Priority: (i.Priority === "Pinned" ? "Pinned" : "Not Pinned") as "Pinned" | "Not Pinned",
       Status: i.Status as "Draft" | "Published",
       TargetAudienceType: (i.TargetAudienceType || "All") as "All" | "Specific" | "Except",
       TargetAudience: i.TargetAudience ?? [],
@@ -88,11 +82,11 @@ export class TabbedAnnouncementService {
       Attachments: (i.AttachmentFiles ?? []).map((f) => ({
         FileName: f.FileName,
         ServerRelativeUrl: f.ServerRelativeUrl,
-      } as ITabbedAnnouncementAttachment)),
+      } as IListAnnouncementAttachment)),
       Created: new Date(i.Created),
     }));
 
-    const filtered = highlights.filter((h) => {
+    const filtered = announcements.filter((h) => {
       const type = h.TargetAudienceType || "All";
       if (type === "All") return true;
       const audienceTitles = (h.TargetAudience || []).map((p) => p.Title?.toLowerCase().trim());
@@ -103,16 +97,17 @@ export class TabbedAnnouncementService {
     });
 
     filtered.sort((a, b) => {
-      const priorityDiff = PRIORITY_ORDER[a.Priority] - PRIORITY_ORDER[b.Priority];
-      if (priorityDiff !== 0) return priorityDiff;
+      const aPinned = a.Priority === "Pinned" ? 0 : 1;
+      const bPinned = b.Priority === "Pinned" ? 0 : 1;
+      if (aPinned !== bPinned) return aPinned - bPinned;
       return (b.Created?.getTime() ?? 0) - (a.Created?.getTime() ?? 0);
     });
 
     return filtered;
   }
 
-  public async addTabbedAnnouncement(
-    highlight: Partial<ITabbedAnnouncement>,
+  public async addListAnnouncement(
+    announcement: Partial<IListAnnouncement>,
     bannerFile?: File,
     attachments?: File[]
   ): Promise<void> {
@@ -122,25 +117,25 @@ export class TabbedAnnouncementService {
       catch (error) { console.error("Banner upload failed:", error); }
     }
 
-    const itemData: ITabbedAnnouncementItemData = {
-      Title: highlight.Title ?? "",
-      Body: highlight.Body || "",
-      HighlightType: highlight.HighlightType ?? "",
-      Site: highlight.Site ?? "",
-      Priority: highlight.Priority ?? "Medium",
-      Status: highlight.Status ?? "Draft",
-      TargetAudienceType: highlight.TargetAudienceType || "All",
+    const itemData: IListAnnouncementItemData = {
+      Title: announcement.Title ?? "",
+      Body: announcement.Body || "",
+      HighlightType: announcement.HighlightType ?? "",
+      Site: announcement.Site ?? "",
+      Priority: announcement.Priority ?? "Medium",
+      Status: announcement.Status ?? "Draft",
+      TargetAudienceType: announcement.TargetAudienceType || "All",
     };
 
-    if (highlight.TargetAudience && highlight.TargetAudience.length > 0) {
-      const audienceIds = highlight.TargetAudience
+    if (announcement.TargetAudience && announcement.TargetAudience.length > 0) {
+      const audienceIds = announcement.TargetAudience
         .filter((p) => p && typeof p.Id === "number" && p.Id > 0)
         .map((p) => p.Id);
       if (audienceIds.length > 0) itemData.TargetAudienceId = audienceIds;
     }
 
     if (bannerUrl) {
-      itemData.BannerImageUrl = { Url: bannerUrl, Description: highlight.Title || "Highlight Banner" };
+      itemData.BannerImageUrl = { Url: bannerUrl, Description: announcement.Title || "Announcement Banner" };
     }
 
     const addResult = await this.sp.web.lists.getByTitle(this.listName).items.add(itemData);
@@ -150,50 +145,50 @@ export class TabbedAnnouncementService {
     }
   }
 
-  public async updateTabbedAnnouncement(
-    highlightId: number,
-    highlight: Partial<ITabbedAnnouncement>,
+  public async updateListAnnouncement(
+    announcementId: number,
+    announcement: Partial<IListAnnouncement>,
     bannerFile?: File,
     attachments?: File[],
     deletedAttachmentNames?: string[]
   ): Promise<void> {
-    let bannerUrl = highlight.BannerImageUrl;
+    let bannerUrl = announcement.BannerImageUrl;
     if (bannerFile) {
       try { bannerUrl = await this.uploadBanner(bannerFile); }
       catch (error) { console.error("Banner upload failed:", error); }
     }
 
-    const itemData: ITabbedAnnouncementItemData = {
-      Title: highlight.Title ?? "",
-      Body: highlight.Body || "",
-      HighlightType: highlight.HighlightType ?? "",
-      Site: highlight.Site ?? "",
-      Priority: highlight.Priority ?? "Medium",
-      Status: highlight.Status ?? "Draft",
-      TargetAudienceType: highlight.TargetAudienceType || "All",
+    const itemData: IListAnnouncementItemData = {
+      Title: announcement.Title ?? "",
+      Body: announcement.Body || "",
+      HighlightType: announcement.HighlightType ?? "",
+      Site: announcement.Site ?? "",
+      Priority: announcement.Priority ?? "Medium",
+      Status: announcement.Status ?? "Draft",
+      TargetAudienceType: announcement.TargetAudienceType || "All",
     };
 
-    if (highlight.TargetAudience && highlight.TargetAudience.length > 0) {
-      const audienceIds = highlight.TargetAudience
+    if (announcement.TargetAudience && announcement.TargetAudience.length > 0) {
+      const audienceIds = announcement.TargetAudience
         .filter((p) => p && typeof p.Id === "number" && p.Id > 0)
         .map((p) => p.Id);
       if (audienceIds.length > 0) itemData.TargetAudienceId = audienceIds;
     }
 
     if (bannerUrl) {
-      itemData.BannerImageUrl = { Url: bannerUrl, Description: highlight.Title || "Highlight Banner" };
-    } else if (!bannerFile && !highlight.BannerImageUrl) {
+      itemData.BannerImageUrl = { Url: bannerUrl, Description: announcement.Title || "Announcement Banner" };
+    } else if (!bannerFile && !announcement.BannerImageUrl) {
       itemData.BannerImageUrl = undefined;
     }
 
-    await this.sp.web.lists.getByTitle(this.listName).items.getById(highlightId).update(itemData);
+    await this.sp.web.lists.getByTitle(this.listName).items.getById(announcementId).update(itemData);
 
     if (deletedAttachmentNames && deletedAttachmentNames.length > 0) {
-      await this.deleteAttachments(highlightId, deletedAttachmentNames);
+      await this.deleteAttachments(announcementId, deletedAttachmentNames);
     }
 
     if (attachments && attachments.length > 0) {
-      await this.uploadAttachments(highlightId, attachments);
+      await this.uploadAttachments(announcementId, attachments);
     }
   }
 
@@ -225,7 +220,7 @@ export class TabbedAnnouncementService {
   }
 
   private async uploadBanner(file: File): Promise<string> {
-    const folderPath = "SiteAssets/TabbedAnnouncementImages";
+    const folderPath = "SiteAssets/ListAnnouncementImages";
     const fileName = Date.now().toString() + "_" + file.name;
     try {
       try {

@@ -1,10 +1,9 @@
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 
-export interface ITabbedAnnouncementsCarouselProps {
+export interface IListAnnouncementsProps {
   webpartTitle: string;
   sourceList: string;
   highlightTypes: string;
-  sites: string;
   isDarkTheme: boolean;
   environmentMessage: string;
   hasTeamsContext: boolean;
@@ -13,4 +12,5 @@ export interface ITabbedAnnouncementsCarouselProps {
   currentUserLogin: string;
   currentUserId: number;
   isAdmin: boolean;
+  itemLimit: number;
 }

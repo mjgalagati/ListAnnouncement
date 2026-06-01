@@ -1,19 +1,19 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { PrimaryButton, Icon } from '@fluentui/react';
-import { ITabbedAnnouncement } from '../models/ITabbedAnnouncement';
-import styles from './TabbedAnnouncementDetailsPanel.module.scss';
+import { IListAnnouncement } from '../models/IListAnnouncement';
+import styles from './ListAnnouncementDetailsPanel.module.scss';
 
-interface TabbedAnnouncementDetailsPanelProps {
-  announcement?: ITabbedAnnouncement;
+interface ListAnnouncementDetailsPanelProps {
+  announcement?: IListAnnouncement;
   isOpen: boolean;
   onDismiss: () => void;
-  onEdit: (announcement: ITabbedAnnouncement) => void;
+  onEdit: (announcement: IListAnnouncement) => void;
   currentUserId: number;
   isAdmin: boolean;
 }
 
-const TabbedAnnouncementDetailsPanel: React.FC<TabbedAnnouncementDetailsPanelProps> = ({
+const ListAnnouncementDetailsPanel: React.FC<ListAnnouncementDetailsPanelProps> = ({
   announcement, isOpen, onDismiss, onEdit, currentUserId, isAdmin,
 }) => {
   if (!isOpen || !announcement) return null; // eslint-disable-line @rushstack/no-new-null
@@ -43,20 +43,21 @@ const TabbedAnnouncementDetailsPanel: React.FC<TabbedAnnouncementDetailsPanelPro
     <div className={styles.backdrop} onClick={handleBackdropClick} role="dialog" aria-modal="true">
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
 
-        {/* ── Hero Banner — title overlaid on image (article style) ── */}
+        {/* ── Hero Banner ── */}
         {hasBanner ? (
           <div className={styles.bannerContainer}>
             <img
               src={announcement.BannerImageUrl}
-              alt={announcement.Title ?? 'Tabbed Announcement Banner'}
+              alt={announcement.Title ?? 'Announcement Banner'}
               className={styles.bannerImage}
             />
 
-            {/* gradient + title/meta overlaid on banner */}
             <div className={styles.bannerOverlayContent}>
               <div className={styles.bannerTypeBadgeRow}>
                 <span className={styles.bannerTypeBadge}>{announcement.HighlightType ?? 'General'}</span>
-                <span className={styles.bannerTypeBadge}>{announcement.Priority}</span>
+                {announcement.Priority === 'Pinned' && (
+                  <span className={styles.bannerTypeBadge}>📌 Pinned</span>
+                )}
               </div>
               <h1 className={styles.bannerTitle}>{announcement.Title ?? 'Untitled'}</h1>
               {announcement.Author && (
@@ -78,7 +79,6 @@ const TabbedAnnouncementDetailsPanel: React.FC<TabbedAnnouncementDetailsPanelPro
             </button>
           </div>
         ) : (
-          // No banner: close button anchored to top-right of modal
           <button
             className={`${styles.closeBtn} ${styles.closeBtnNoImage}`}
             onClick={onDismiss}
@@ -92,22 +92,18 @@ const TabbedAnnouncementDetailsPanel: React.FC<TabbedAnnouncementDetailsPanelPro
         <div className={styles.scrollBody}>
           <div className={styles.content}>
 
-            {/* When no banner: show title/meta in content */}
             {!hasBanner && (
               <div className={styles.headerNoBanner}>
                 <div className={styles.titleSection}>
                   <div className={styles.typeBadgeRow}>
                     <span className={styles.typeBadge}>{announcement.HighlightType ?? 'General'}</span>
-                    <span className={`${styles.priorityBadge} ${
-                      announcement.Priority === 'Critical' ? styles.priorityCritical :
-                      announcement.Priority === 'High'     ? styles.priorityHigh :
-                      announcement.Priority === 'Medium'   ? styles.priorityMedium :
-                      styles.priorityLow
-                    }`}>
-                      {announcement.Priority}
-                    </span>
+                    {announcement.Priority === 'Pinned' && (
+                      <span className={styles.pinnedBadge}>
+                        <Icon iconName="Pin" /> Pinned
+                      </span>
+                    )}
                   </div>
-                  <h1 className={styles.tabbedAnnouncementTitle}>{announcement.Title ?? 'Untitled'}</h1>
+                  <h1 className={styles.announcementTitle}>{announcement.Title ?? 'Untitled'}</h1>
                   {announcement.Author && (
                     <span className={styles.authorLabel}>
                       <Icon iconName="Contact" /> {announcement.Author.Title}
@@ -133,7 +129,6 @@ const TabbedAnnouncementDetailsPanel: React.FC<TabbedAnnouncementDetailsPanelPro
               )}
             </div>
 
-            {/* Body — rich text rendered as-is from SharePoint */}
             {announcement.Body && (
               <div
                 className={styles.bodyBox}
@@ -141,7 +136,6 @@ const TabbedAnnouncementDetailsPanel: React.FC<TabbedAnnouncementDetailsPanelPro
               />
             )}
 
-            {/* Attachments */}
             {announcement.Attachments && announcement.Attachments.length > 0 && (
               <div className={styles.infoCard}>
                 <div className={styles.cardHeader}>
@@ -173,7 +167,6 @@ const TabbedAnnouncementDetailsPanel: React.FC<TabbedAnnouncementDetailsPanelPro
               </div>
             )}
 
-            {/* Status footer */}
             <div className={styles.statusContainer}>
               <span className={`${styles.statusBadge} ${
                 announcement.Status === 'Published' ? styles.statusActive : styles.statusDraft
@@ -190,4 +183,4 @@ const TabbedAnnouncementDetailsPanel: React.FC<TabbedAnnouncementDetailsPanelPro
   );
 };
 
-export default TabbedAnnouncementDetailsPanel;
+export default ListAnnouncementDetailsPanel;

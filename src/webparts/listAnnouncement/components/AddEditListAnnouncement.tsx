@@ -7,20 +7,19 @@ import {
   Spinner, SpinnerSize, MessageBar, MessageBarType,
 } from '@fluentui/react';
 import { PeoplePicker, PrincipalType } from '@pnp/spfx-controls-react/lib/PeoplePicker';
-import { ITabbedAnnouncement, ITabbedAnnouncementAttachment, ITabbedAnnouncementAudience } from '../models/ITabbedAnnouncement';
+import { IListAnnouncement, IListAnnouncementAttachment, IListAnnouncementAudience } from '../models/IListAnnouncement';
 import { WebPartContext } from '@microsoft/sp-webpart-base';
-import styles from './AddEditTabbedAnnouncement.module.scss';
+import styles from './AddEditListAnnouncement.module.scss';
 
-interface AddEditTabbedAnnouncementProps {
+interface AddEditListAnnouncementProps {
   isOpen: boolean;
   mode: 'add' | 'edit';
-  announcement?: ITabbedAnnouncement;
+  announcement?: IListAnnouncement;
   context: WebPartContext;
-  highlightTypeOptions: string[];
-  siteOptions: string[];
+  categoryOptions: string[];
   onDismiss: () => void;
   onSave: (
-    data: Partial<ITabbedAnnouncement>,
+    data: Partial<IListAnnouncement>,
     bannerFile?: File,
     attachments?: File[],
     deletedAttachmentNames?: string[]
@@ -28,10 +27,8 @@ interface AddEditTabbedAnnouncementProps {
 }
 
 const PRIORITY_OPTIONS: IDropdownOption[] = [
-  { key: 'Critical', text: 'Critical' },
-  { key: 'High',     text: 'High' },
-  { key: 'Medium',   text: 'Medium' },
-  { key: 'Low',      text: 'Low' },
+  { key: 'Not Pinned', text: 'Not Pinned' },
+  { key: 'Pinned',     text: 'Pinned' },
 ];
 
 const STATUS_OPTIONS: IDropdownOption[] = [
@@ -63,40 +60,34 @@ const formatFileSize = (bytes: number): string => {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 };
 
-const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
-  isOpen, mode, announcement, context, highlightTypeOptions, siteOptions, onDismiss, onSave,
+const AddEditListAnnouncement: React.FC<AddEditListAnnouncementProps> = ({
+  isOpen, mode, announcement, context, categoryOptions, onDismiss, onSave,
 }) => {
   const bodyEditorRef = useRef<HTMLDivElement>(null);
 
   const [title, setTitle] = useState('');
-  const [highlightType, setHighlightType] = useState('');
-  const [site, setSite] = useState('All');
-  const [priority, setPriority] = useState<'Critical' | 'High' | 'Medium' | 'Low'>('Medium');
+  const [category, setCategory] = useState('');
+  const [priority, setPriority] = useState<'Pinned' | 'Not Pinned'>('Not Pinned');
   const [status, setStatus] = useState<'Draft' | 'Published'>('Draft');
   const [targetAudienceType, setTargetAudienceType] = useState<'All' | 'Specific' | 'Except'>('All');
-  const [targetAudience, setTargetAudience] = useState<ITabbedAnnouncementAudience[]>([]);
+  const [targetAudience, setTargetAudience] = useState<IListAnnouncementAudience[]>([]);
   const [bannerFile, setBannerFile] = useState<File | undefined>(undefined);
   const [bannerPreview, setBannerPreview] = useState<string | undefined>(undefined);
   const [newAttachments, setNewAttachments] = useState<File[]>([]);
-  const [existingAttachments, setExistingAttachments] = useState<ITabbedAnnouncementAttachment[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<IListAnnouncementAttachment[]>([]);
   const [deletedAttachmentNames, setDeletedAttachmentNames] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [saveError, setSaveError] = useState<string | undefined>(undefined);
 
-  const highlightTypeDropdownOptions: IDropdownOption[] = highlightTypeOptions.map(t => ({ key: t, text: t }));
-  const siteDropdownOptions: IDropdownOption[] = [
-    { key: 'All', text: 'All (appears in every tab)' },
-    ...siteOptions.map(s => ({ key: s, text: s })),
-  ];
+  const categoryDropdownOptions: IDropdownOption[] = categoryOptions.map(t => ({ key: t, text: t }));
 
   useEffect(() => {
     if (isOpen) {
       if (mode === 'edit' && announcement) {
         setTitle(announcement.Title ?? '');
-        setHighlightType(announcement.HighlightType ?? '');
-        setSite(announcement.Site ?? 'All');
-        setPriority(announcement.Priority ?? 'Medium');
+        setCategory(announcement.HighlightType ?? '');
+        setPriority(announcement.Priority === 'Pinned' ? 'Pinned' : 'Not Pinned');
         setStatus((announcement.Status === 'Draft' || announcement.Status === 'Published') ? announcement.Status : 'Draft');
         setTargetAudienceType(announcement.TargetAudienceType ?? 'All');
         setTargetAudience(announcement.TargetAudience ?? []);
@@ -105,9 +96,8 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
         if (bodyEditorRef.current) bodyEditorRef.current.innerHTML = announcement.Body ?? '';
       } else {
         setTitle('');
-        setHighlightType(highlightTypeOptions[0] ?? '');
-        setSite('All');
-        setPriority('Medium');
+        setCategory(categoryOptions[0] ?? '');
+        setPriority('Not Pinned');
         setStatus('Draft');
         setTargetAudienceType('All');
         setTargetAudience([]);
@@ -132,8 +122,7 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
   const validate = (): boolean => {
     const newErrors: { [key: string]: string } = {};
     if (!title.trim()) newErrors.title = 'Title is required';
-    if (!highlightType) newErrors.highlightType = 'Highlight type is required';
-    if (!site) newErrors.site = 'Site is required';
+    if (!category) newErrors.category = 'Category is required';
     if (targetAudienceType !== 'All' && targetAudience.length === 0) {
       newErrors.targetAudience = 'Please select at least one person for the target audience';
     }
@@ -146,11 +135,11 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
     setIsSaving(true);
     setSaveError(undefined);
     try {
-      const data: Partial<ITabbedAnnouncement> = {
+      const data: Partial<IListAnnouncement> = {
         Title: title,
         Body: bodyEditorRef.current?.innerHTML ?? '',
-        HighlightType: highlightType,
-        Site: site,
+        HighlightType: category,
+        Site: announcement?.Site ?? 'All',
         Priority: priority,
         Status: status,
         TargetAudienceType: targetAudienceType,
@@ -160,7 +149,7 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
       await onSave(data, bannerFile, newAttachments, deletedAttachmentNames);
     } catch (err) {
       console.error('Save error:', err);
-      setSaveError('Failed to save highlight. Please try again.');
+      setSaveError('Failed to save announcement. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -209,7 +198,7 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
         <div className={styles.panelHeader}>
           <h2 className={styles.panelTitle}>
             <Icon iconName={mode === 'add' ? 'Add' : 'Edit'} className={styles.titleIcon} />
-            {mode === 'add' ? 'New Highlight' : 'Edit Highlight'}
+            {mode === 'add' ? 'New Announcement' : 'Edit Announcement'}
           </h2>
           <button className={styles.closeBtn} onClick={onDismiss} aria-label="Close">
             <Icon iconName="Cancel" />
@@ -236,27 +225,17 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
               value={title}
               onChange={(_, v) => setTitle(v ?? '')}
               errorMessage={errors.title}
-              placeholder="Enter highlight title"
+              placeholder="Enter announcement title"
             />
             <Dropdown
-              label="Highlight Type"
+              label="Category"
               required
-              selectedKey={highlightType}
-              options={highlightTypeDropdownOptions}
-              onChange={(_, o) => setHighlightType(o?.key as string ?? '')}
-              errorMessage={errors.highlightType}
-              disabled={highlightTypeDropdownOptions.length === 0}
-              placeholder={highlightTypeDropdownOptions.length === 0 ? 'Configure Highlight Types in web part settings' : 'Select highlight type'}
-            />
-            <Dropdown
-              label="Site"
-              required
-              selectedKey={site}
-              options={siteDropdownOptions}
-              onChange={(_, o) => setSite(o?.key as string ?? 'All')}
-              errorMessage={errors.site}
-              disabled={siteDropdownOptions.length === 0}
-              placeholder="Select site"
+              selectedKey={category}
+              options={categoryDropdownOptions}
+              onChange={(_, o) => setCategory(o?.key as string ?? '')}
+              errorMessage={errors.category}
+              disabled={categoryDropdownOptions.length === 0}
+              placeholder={categoryDropdownOptions.length === 0 ? 'Configure Categories in web part settings' : 'Select category'}
             />
           </div>
 
@@ -310,7 +289,7 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
                 ref={bodyEditorRef}
                 className={styles.bodyEditor}
                 contentEditable={true}
-                data-placeholder="Write your message here…"
+                data-placeholder="Write your announcement here…"
                 suppressContentEditableWarning={true}
               />
             </div>
@@ -350,17 +329,17 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
             </div>
           </div>
 
-          {/* Priority */}
+          {/* Pin */}
           <div className={styles.formSection}>
             <div className={styles.sectionHeader}>
-              <Icon iconName="Flag" className={styles.sectionIcon} />
-              <h3>Priority</h3>
+              <Icon iconName="Pin" className={styles.sectionIcon} />
+              <h3>Pin to Top</h3>
             </div>
             <Dropdown
-              label="Priority Level"
+              label="Pinned"
               selectedKey={priority}
               options={PRIORITY_OPTIONS}
-              onChange={(_, o) => setPriority(o?.key as 'Critical' | 'High' | 'Medium' | 'Low' ?? 'Medium')}
+              onChange={(_, o) => setPriority(o?.key === 'Pinned' ? 'Pinned' : 'Not Pinned')}
             />
           </div>
 
@@ -395,12 +374,12 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
             />
             {targetAudienceType === 'Specific' && (
               <span className={styles.fieldHint}>
-                Only the selected people below will see this highlight.
+                Only the selected people below will see this announcement.
               </span>
             )}
             {targetAudienceType === 'Except' && (
               <span className={styles.fieldHint}>
-                Everyone will see this highlight <strong>except</strong> the selected people below.
+                Everyone will see this announcement <strong>except</strong> the selected people below.
               </span>
             )}
             {targetAudienceType !== 'All' && (
@@ -413,7 +392,7 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
                   resolveDelay={1000}
                   defaultSelectedUsers={targetAudience.map(p => p.Title)}
                   onChange={(items) => {
-                    const people: ITabbedAnnouncementAudience[] = (items || []).map((item: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+                    const people: IListAnnouncementAudience[] = (items || []).map((item: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
                       Id: parseInt(item.id, 10),
                       Title: item.text,
                     }));
@@ -495,7 +474,7 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
         <div className={styles.actionButtons}>
           <DefaultButton text="Cancel" onClick={onDismiss} disabled={isSaving} />
           <PrimaryButton
-            text={isSaving ? 'Saving...' : mode === 'add' ? 'Add Highlight' : 'Save Changes'}
+            text={isSaving ? 'Saving...' : mode === 'add' ? 'Add Announcement' : 'Save Changes'}
             onClick={handleSave}
             disabled={isSaving}
           >
@@ -510,4 +489,4 @@ const AddEditTabbedAnnouncement: React.FC<AddEditTabbedAnnouncementProps> = ({
   return ReactDOM.createPortal(modal, document.body);
 };
 
-export default AddEditTabbedAnnouncement;
+export default AddEditListAnnouncement;

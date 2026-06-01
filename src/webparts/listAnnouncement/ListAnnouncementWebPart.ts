@@ -5,27 +5,28 @@ import {
   IPropertyPaneConfiguration,
   PropertyPaneTextField,
   PropertyPaneDropdown,
+  PropertyPaneSlider,
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 
-import * as strings from 'TabbedAnnouncementWebPartStrings';
-import TabbedAnnouncementsCarousel from './components/TabbedAnnouncementsCarousel';
-import { ITabbedAnnouncementsCarouselProps } from './components/ITabbedAnnouncementsCarouselProps';
+import * as strings from 'ListAnnouncementWebPartStrings';
+import ListAnnouncements from './components/ListAnnouncements';
+import { IListAnnouncementsProps } from './components/IListAnnouncementsProps';
 import { spfi, SPFx } from "@pnp/sp";
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/site-users/web";
 import "@pnp/sp/site-groups/web";
 
-export interface ITabbedAnnouncementWebPartProps {
+export interface IListAnnouncementWebPartProps {
   webpartTitle: string;
   sourceList: string;
   highlightTypes: string;
-  sites: string;
   editGroup: string;
+  itemLimit: number;
 }
 
-export default class TabbedAnnouncementWebPart extends BaseClientSideWebPart<ITabbedAnnouncementWebPartProps> {
+export default class ListAnnouncementWebPart extends BaseClientSideWebPart<IListAnnouncementWebPartProps> {
 
   private _sp!: ReturnType<typeof spfi>;
   private _siteLists: { key: string; text: string }[] = [];
@@ -33,13 +34,12 @@ export default class TabbedAnnouncementWebPart extends BaseClientSideWebPart<ITa
   private _isEditor: boolean = false;
 
   public render(): void {
-    const element: React.ReactElement<ITabbedAnnouncementsCarouselProps> = React.createElement(
-      TabbedAnnouncementsCarousel,
+    const element: React.ReactElement<IListAnnouncementsProps> = React.createElement(
+      ListAnnouncements,
       {
-        webpartTitle: this.properties.webpartTitle || 'MGEN Thermal Highlights',
+        webpartTitle: this.properties.webpartTitle || 'ESH Bulletin',
         sourceList: this.properties.sourceList,
         highlightTypes: this.properties.highlightTypes || '',
-        sites: this.properties.sites || '',
         isDarkTheme: !!this.context.pageContext.legacyPageContext?.isDarkTheme,
         environmentMessage: '',
         hasTeamsContext: !!this.context.sdks.microsoftTeams,
@@ -48,7 +48,8 @@ export default class TabbedAnnouncementWebPart extends BaseClientSideWebPart<ITa
         currentUserLogin: this.context.pageContext.user.loginName,
         currentUserId: this._currentUserId,
         isAdmin: this._isEditor,
-      } as ITabbedAnnouncementsCarouselProps
+        itemLimit: this.properties.itemLimit ?? 5,
+      } as IListAnnouncementsProps
     );
 
     ReactDom.render(element, this.domElement);
@@ -72,7 +73,6 @@ export default class TabbedAnnouncementWebPart extends BaseClientSideWebPart<ITa
     super.onPropertyPaneFieldChanged(propertyPath, oldValue, newValue);
     if (newValue !== oldValue) {
       if (propertyPath === 'editGroup') {
-        // Re-evaluate group membership when the group name changes
         this._checkEditPermission().then(() => this.render()).catch(console.error);
       } else {
         this.render();
@@ -108,7 +108,6 @@ export default class TabbedAnnouncementWebPart extends BaseClientSideWebPart<ITa
   private async _checkEditPermission(): Promise<void> {
     const groupName = this.properties.editGroup?.trim();
     if (!groupName) {
-      // No group configured — no one gets editor access by default
       this._isEditor = false;
       return;
     }
@@ -132,27 +131,30 @@ export default class TabbedAnnouncementWebPart extends BaseClientSideWebPart<ITa
               groupFields: [
                 PropertyPaneTextField('webpartTitle', {
                   label: 'Web Part Title',
-                  placeholder: 'MGEN Thermal Highlights',
+                  placeholder: 'ESH Bulletin',
                 }),
                 PropertyPaneDropdown('sourceList', {
-                  label: 'Select Highlights List',
+                  label: 'Select Announcements List',
                   options: this._siteLists,
                   disabled: this._siteLists.length === 0,
                 }),
                 PropertyPaneTextField('highlightTypes', {
-                  label: 'Highlight Types',
-                  description: 'Comma-separated (e.g. Achievement, Certification, Recognition)',
-                  placeholder: 'Achievement, Certification, Recognition',
-                }),
-                PropertyPaneTextField('sites', {
-                  label: 'Sites',
-                  description: 'Comma-separated — each becomes a tab (e.g. Corporate, Panay, Cebu)',
-                  placeholder: 'Corporate, Panay, Cebu',
+                  label: 'Categories',
+                  description: 'Comma-separated (e.g. Safety, Environment, Health)',
+                  placeholder: 'Safety, Environment, Health',
                 }),
                 PropertyPaneTextField('editGroup', {
                   label: 'Add/Edit Permission Group',
-                  description: 'SharePoint site group name — only members can add or edit highlights',
-                  placeholder: 'e.g. MThermalEA',
+                  description: 'SharePoint site group name — only members can add or edit announcements',
+                  placeholder: 'e.g. ESH Editors',
+                }),
+                PropertyPaneSlider('itemLimit', {
+                  label: 'Item List Limit',
+                  min: 1,
+                  max: 5,
+                  step: 1,
+                  showValue: true,
+                  value: this.properties.itemLimit ?? 5,
                 }),
               ]
             }

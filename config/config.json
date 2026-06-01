@@ -5,15 +5,15 @@
     "tabbed-announcement-web-part": {
       "components": [
         {
-          "entrypoint": "./lib/webparts/tabbedAnnouncement/TabbedAnnouncementWebPart.js",
-          "manifest": "./src/webparts/tabbedAnnouncement/TabbedAnnouncementWebPart.manifest.json"
+          "entrypoint": "./lib/webparts/listAnnouncement/ListAnnouncementWebPart.js",
+          "manifest": "./src/webparts/listAnnouncement/ListAnnouncementWebPart.manifest.json"
         }
       ]
     }
   },
   "externals": {},
   "localizedResources": {
-    "TabbedAnnouncementWebPartStrings": "lib/webparts/tabbedAnnouncement/loc/{locale}.js",
+    "ListAnnouncementWebPartStrings": "lib/webparts/listAnnouncement/loc/{locale}.js",
     "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js"
   }
 }
