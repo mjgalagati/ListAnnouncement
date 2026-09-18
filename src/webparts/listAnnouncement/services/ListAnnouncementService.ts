@@ -17,6 +17,7 @@ interface IListAnnouncementListItem {
   Site: string;
   Priority: string;
   Status: string;
+  RejectionReason?: string;
   TargetAudienceType?: string;
   TargetAudience?: IListAnnouncementAudience[];
   BannerImageUrl?: { Url: string; Description?: string };
@@ -32,6 +33,7 @@ interface IListAnnouncementItemData {
   Site: string;
   Priority: string;
   Status: string;
+  RejectionReason?: string;
   TargetAudienceType?: string;
   TargetAudienceId?: number[];
   BannerImageUrl?: { Url: string; Description: string } | undefined;
@@ -60,7 +62,7 @@ export class ListAnnouncementService {
       .getByTitle(this.listName)
       .items.select(
         "Id", "Title", "Body", "HighlightType", "Site",
-        "Priority", "Status",
+        "Priority", "Status", "RejectionReason",
         "TargetAudienceType", "TargetAudience/Id", "TargetAudience/Title",
         "BannerImageUrl", "Author/Id", "Author/Title",
         "AttachmentFiles", "Created"
@@ -74,7 +76,8 @@ export class ListAnnouncementService {
       HighlightType: i.HighlightType,
       Site: i.Site,
       Priority: (i.Priority === "Pinned" ? "Pinned" : "Not Pinned") as "Pinned" | "Not Pinned",
-      Status: i.Status as "Draft" | "Published",
+      Status: i.Status as "Draft" | "Published" | "Rejected",
+      RejectionReason: i.RejectionReason || undefined,
       TargetAudienceType: (i.TargetAudienceType || "All") as "All" | "Specific" | "Except",
       TargetAudience: i.TargetAudience ?? [],
       BannerImageUrl: i.BannerImageUrl?.Url,
@@ -124,6 +127,7 @@ export class ListAnnouncementService {
       Site: announcement.Site ?? "",
       Priority: announcement.Priority ?? "Medium",
       Status: announcement.Status ?? "Draft",
+      RejectionReason: announcement.RejectionReason,
       TargetAudienceType: announcement.TargetAudienceType || "All",
     };
 
@@ -165,6 +169,7 @@ export class ListAnnouncementService {
       Site: announcement.Site ?? "",
       Priority: announcement.Priority ?? "Medium",
       Status: announcement.Status ?? "Draft",
+      RejectionReason: announcement.RejectionReason,
       TargetAudienceType: announcement.TargetAudienceType || "All",
     };
 
@@ -190,6 +195,14 @@ export class ListAnnouncementService {
     if (attachments && attachments.length > 0) {
       await this.uploadAttachments(announcementId, attachments);
     }
+  }
+
+  public async approveAnnouncement(announcementId: number): Promise<void> {
+    await this.sp.web.lists.getByTitle(this.listName).items.getById(announcementId).update({ Status: "Published", RejectionReason: "" });
+  }
+
+  public async rejectAnnouncement(announcementId: number, reason: string): Promise<void> {
+    await this.sp.web.lists.getByTitle(this.listName).items.getById(announcementId).update({ Status: "Rejected", RejectionReason: reason });
   }
 
   public async uploadAttachments(itemId: number, files: File[]): Promise<void> {

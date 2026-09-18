@@ -1,9 +1,13 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import { Icon, SearchBox, DatePicker, IconButton } from '@fluentui/react';
+import { PrimaryButton, DefaultButton, Icon, SearchBox, DatePicker, IconButton, TextField } from '@fluentui/react';
+import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { IListAnnouncement } from '../models/IListAnnouncement';
+import { ListAnnouncementService } from '../services/ListAnnouncementService';
 import styles from './ViewAllPanel.module.scss';
 import { useState } from 'react';
+
+const TYPE_COLORS = ['#2e7d32','#1565c0','#6a1b9a','#e65100','#00838f','#ad1457','#c62828','#37474f'];
 
 interface ViewAllPanelProps {
   announcements: IListAnnouncement[];
@@ -12,12 +16,18 @@ interface ViewAllPanelProps {
   onSelectAnnouncement: (announcement: IListAnnouncement) => void;
   onAddAnnouncement?: () => void;
   categoryList: string[];
+  isEditor: boolean;
+  isApprover: boolean;
+  hasApproval: boolean;
+  currentUserId: number;
+  context: WebPartContext;
+  sourceList: string;
+  onAfterModeration: () => Promise<void>;
 }
-
-const TYPE_COLORS = ['#2e7d32','#1565c0','#6a1b9a','#e65100','#00838f','#ad1457','#c62828','#37474f'];
 
 const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
   announcements, isOpen, onDismiss, onSelectAnnouncement, onAddAnnouncement, categoryList,
+  isEditor, isApprover, hasApproval, context, sourceList, onAfterModeration,
 }): JSX.Element => {
   const getTypeColor = (type: string): string => {
     const idx = categoryList.findIndex(t => t.toLowerCase() === type?.trim().toLowerCase());
@@ -27,8 +37,13 @@ const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [showDateFilter, setShowDateFilter] = useState<boolean>(false);
+  const [rejectingId, setRejectingId] = useState<number | undefined>(undefined);
+  const [rejectReason, setRejectReason] = useState<string>('');
+  const [moderatingId, setModeratingId] = useState<number | undefined>(undefined);
 
   if (!isOpen) return <></>;
+
+  const isModerator = isEditor || isApprover;
 
   const filteredAnnouncements = announcements.filter(announcement => {
     const matchesSearch =
@@ -48,7 +63,10 @@ const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
   });
 
   const publishedAnnouncements = filteredAnnouncements.filter(a => a.Status?.trim() === 'Published');
-  const draftAnnouncements     = filteredAnnouncements.filter(a => a.Status?.trim() === 'Draft');
+  const draftAnnouncements     = isModerator ? filteredAnnouncements.filter(a => a.Status?.trim() === 'Draft') : [];
+  const rejectedAnnouncements  = (isModerator && hasApproval) ? filteredAnnouncements.filter(a => a.Status?.trim() === 'Rejected') : [];
+
+  const visibleCount = publishedAnnouncements.length + draftAnnouncements.length + rejectedAnnouncements.length;
 
   const formatDate = (date?: Date): string => {
     if (!date) return 'N/A';
@@ -57,51 +75,136 @@ const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
 
   const getStatusClass = (status: string): string => {
     if (status === 'Published') return styles.statusActive;
+    if (status === 'Rejected') return styles.statusRejected;
     return styles.statusDraft;
   };
-
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>): void => {
     if (e.target === e.currentTarget) onDismiss();
   };
 
-  const renderAnnouncementCard = (announcement: IListAnnouncement): JSX.Element => (
-    <div
-      key={announcement.Id}
-      className={styles.announcementCard}
-      onClick={() => onSelectAnnouncement(announcement)}
-    >
-      <div className={styles.cardContent}>
-        <div className={styles.cardHeader}>
-          <h3 className={styles.cardTitle}>{announcement.Title}</h3>
-          <div className={styles.cardBadges}>
-            {announcement.Priority === 'Pinned' && (
-              <span className={styles.pinnedBadge}>📌 Pinned</span>
-            )}
-            <span className={`${styles.statusBadge} ${getStatusClass(announcement.Status)}`}>
-              {announcement.Status}
-            </span>
+  const handleApprove = async (announcement: IListAnnouncement): Promise<void> => {
+    setModeratingId(announcement.Id);
+    try {
+      const service = new ListAnnouncementService(context, sourceList);
+      await service.approveAnnouncement(announcement.Id);
+      await onAfterModeration();
+    } catch (err) {
+      console.error('Failed to publish announcement:', err);
+    } finally {
+      setModeratingId(undefined);
+    }
+  };
+
+  const startReject = (announcementId: number): void => {
+    setRejectingId(announcementId);
+    setRejectReason('');
+  };
+
+  const cancelReject = (): void => {
+    setRejectingId(undefined);
+    setRejectReason('');
+  };
+
+  const confirmReject = async (announcement: IListAnnouncement): Promise<void> => {
+    if (!rejectReason.trim()) return;
+    setModeratingId(announcement.Id);
+    try {
+      const service = new ListAnnouncementService(context, sourceList);
+      await service.rejectAnnouncement(announcement.Id, rejectReason.trim());
+      await onAfterModeration();
+      cancelReject();
+    } catch (err) {
+      console.error('Failed to reject announcement:', err);
+    } finally {
+      setModeratingId(undefined);
+    }
+  };
+
+  const renderAnnouncementCard = (announcement: IListAnnouncement): JSX.Element => {
+    const canModerate = hasApproval && isApprover && announcement.Status?.trim() === 'Draft';
+    const isRejecting = rejectingId === announcement.Id;
+    const isBusy = moderatingId === announcement.Id;
+
+    return (
+      <div
+        key={announcement.Id}
+        className={styles.announcementCard}
+        onClick={() => onSelectAnnouncement(announcement)}
+      >
+        <div className={styles.cardContent}>
+          <div className={styles.cardHeader}>
+            <h3 className={styles.cardTitle}>{announcement.Title}</h3>
+            <div className={styles.cardBadges}>
+              {announcement.Priority === 'Pinned' && (
+                <span className={styles.pinnedBadge}>📌 Pinned</span>
+              )}
+              <span className={`${styles.statusBadge} ${getStatusClass(announcement.Status)}`}>
+                {announcement.Status}
+              </span>
+            </div>
           </div>
-        </div>
-        <div className={styles.cardInfo}>
-          <div className={styles.infoItem}>
-            <Icon iconName="Calendar" className={styles.infoIcon} />
-            <span>{formatDate(announcement.Created)}</span>
-          </div>
-          <div className={styles.infoItem}>
-            <Icon iconName="Tag" className={styles.infoIcon} />
-            <span className={styles.typeTag} style={{ color: getTypeColor(announcement.HighlightType) }}>{announcement.HighlightType}</span>
-          </div>
-          {announcement.TargetAudienceType && announcement.TargetAudienceType !== 'All' && (
+          <div className={styles.cardInfo}>
             <div className={styles.infoItem}>
-              <Icon iconName="People" className={styles.infoIcon} />
-              <span>{announcement.TargetAudienceType === 'Specific' ? 'Specific Audience' : 'All Except'}</span>
+              <Icon iconName="Calendar" className={styles.infoIcon} />
+              <span>{formatDate(announcement.Created)}</span>
+            </div>
+            <div className={styles.infoItem}>
+              <Icon iconName="Tag" className={styles.infoIcon} />
+              <span className={styles.typeTag} style={{ color: getTypeColor(announcement.HighlightType) }}>{announcement.HighlightType}</span>
+            </div>
+            {announcement.TargetAudienceType && announcement.TargetAudienceType !== 'All' && (
+              <div className={styles.infoItem}>
+                <Icon iconName="People" className={styles.infoIcon} />
+                <span>{announcement.TargetAudienceType === 'Specific' ? 'Specific Audience' : 'All Except'}</span>
+              </div>
+            )}
+          </div>
+
+          {canModerate && !isRejecting && (
+            <div className={styles.moderationActions} onClick={e => e.stopPropagation()}>
+              <PrimaryButton
+                text="Publish"
+                iconProps={{ iconName: 'CheckMark' }}
+                onClick={() => handleApprove(announcement)}
+                disabled={isBusy}
+                className={styles.approveBtn}
+              />
+              <DefaultButton
+                text="Reject"
+                iconProps={{ iconName: 'Cancel' }}
+                onClick={() => startReject(announcement.Id)}
+                disabled={isBusy}
+                className={styles.rejectBtn}
+              />
+            </div>
+          )}
+
+          {canModerate && isRejecting && (
+            <div className={styles.rejectForm} onClick={e => e.stopPropagation()}>
+              <TextField
+                placeholder="Reason for rejection..."
+                value={rejectReason}
+                onChange={(_, v) => setRejectReason(v || '')}
+                multiline
+                rows={2}
+                autoFocus
+              />
+              <div className={styles.rejectFormActions}>
+                <PrimaryButton
+                  text="Confirm Reject"
+                  onClick={() => confirmReject(announcement)}
+                  disabled={!rejectReason.trim() || isBusy}
+                  className={styles.rejectBtn}
+                />
+                <DefaultButton text="Cancel" onClick={cancelReject} disabled={isBusy} />
+              </div>
             </div>
           )}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return ReactDOM.createPortal(
     <div className={styles.backdrop} onClick={handleBackdropClick} role="dialog" aria-modal="true">
@@ -186,13 +289,13 @@ const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
           )}
 
           <div className={styles.announcementCount}>
-            <span>{filteredAnnouncements.length} announcement{filteredAnnouncements.length !== 1 ? 's' : ''} found</span>
+            <span>{visibleCount} announcement{visibleCount !== 1 ? 's' : ''} found</span>
           </div>
         </div>
 
         {/* ── Scrollable Content ── */}
         <div className={styles.panelContent}>
-          {filteredAnnouncements.length === 0 && (
+          {visibleCount === 0 && (
             <div className={styles.emptyState}>
               <Icon iconName="Megaphone" className={styles.emptyIcon} />
               <p>No announcements found</p>
@@ -220,6 +323,18 @@ const ViewAllPanel: React.FC<ViewAllPanelProps> = ({
               </div>
               <div className={styles.announcementGrid}>
                 {draftAnnouncements.map(renderAnnouncementCard)}
+              </div>
+            </div>
+          )}
+
+          {rejectedAnnouncements.length > 0 && (
+            <div className={styles.announcementSection}>
+              <div className={styles.sectionHeader}>
+                <Icon iconName="ErrorBadge" className={styles.sectionIcon} />
+                <h3>Rejected ({rejectedAnnouncements.length})</h3>
+              </div>
+              <div className={styles.announcementGrid}>
+                {rejectedAnnouncements.map(renderAnnouncementCard)}
               </div>
             </div>
           )}

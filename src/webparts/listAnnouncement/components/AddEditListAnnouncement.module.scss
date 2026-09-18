@@ -366,6 +366,13 @@
   &:hover { border-color: #0078d4; background-color: #f0f6ff; }
 }
 
+.attachmentHint {
+  font-size: 0.78em;
+  color: #8a8886;
+  text-align: center;
+  display: block;
+}
+
 // ─── Action Buttons ───────────────────────────────────────────────────────────
 .actionButtons {
   display: flex;
@@ -466,6 +473,15 @@
   &:active { background: #e1dfdd; }
 
   i { font-style: normal; }
+}
+
+.toolbarDivider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: #d2d0ce;
+  align-self: center;
+  flex-shrink: 0;
 }
 
 .bodyEditor {

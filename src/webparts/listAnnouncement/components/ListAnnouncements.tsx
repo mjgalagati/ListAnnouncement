@@ -57,6 +57,8 @@ const ListAnnouncements = (props: IListAnnouncementsProps): JSX.Element => {
     loadAnnouncements().catch(console.error);
   }, [props.sourceList, props.context]);
 
+  const canCreate = props.isEditor || props.isApprover;
+
   const visibleAnnouncements = announcements
     .filter(a => a.Status?.trim() === 'Published')
     .slice(0, props.itemLimit ?? 5);
@@ -123,8 +125,15 @@ const ListAnnouncements = (props: IListAnnouncementsProps): JSX.Element => {
         isOpen={isViewAllOpen}
         onDismiss={() => setIsViewAllOpen(false)}
         onSelectAnnouncement={openDetails}
-        onAddAnnouncement={props.isAdmin ? openAdd : undefined}
+        onAddAnnouncement={canCreate ? openAdd : undefined}
         categoryList={categoryList}
+        isEditor={props.isEditor}
+        isApprover={props.isApprover}
+        hasApproval={props.hasApproval}
+        currentUserId={props.currentUserId}
+        context={props.context}
+        sourceList={props.sourceList}
+        onAfterModeration={loadAnnouncements}
       />
       <ListAnnouncementDetailsPanel
         announcement={selectedAnnouncement}
@@ -132,7 +141,13 @@ const ListAnnouncements = (props: IListAnnouncementsProps): JSX.Element => {
         onDismiss={closeDetails}
         onEdit={openEdit}
         currentUserId={props.currentUserId}
-        isAdmin={props.isAdmin}
+        isEditor={props.isEditor}
+        isApprover={props.isApprover}
+        hasApproval={props.hasApproval}
+        context={props.context}
+        reactionsListName={props.reactionsListName}
+        commentsListName={props.commentsListName}
+        commentsReactionsAlias={props.commentsReactionsAlias}
       />
       <AddEditListAnnouncement
         isOpen={isAddEditOpen}
@@ -140,70 +155,78 @@ const ListAnnouncements = (props: IListAnnouncementsProps): JSX.Element => {
         announcement={announcementToEdit}
         context={props.context}
         categoryOptions={categoryList}
+        isApprover={props.isApprover}
+        hasApproval={props.hasApproval}
         onDismiss={closeAddEdit}
         onSave={handleSave}
       />
     </>
   );
 
+  const pageTitle = props.webpartTitle?.trim();
+
   if (!props.sourceList) {
     return (
-      <div className={styles.container}>
-        <h2 className={styles.webpartTitle}>{props.webpartTitle || 'ESH Bulletin'}</h2>
-        <p className={styles.noList}>Please select a list in the web part settings to get started.</p>
+      <div className={styles.wrapper}>
+        {pageTitle && <h2 className={styles.pageTitle}>{pageTitle}</h2>}
+        <div className={styles.container}>
+          <p className={styles.noList}>Please select a list in the web part settings to get started.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.headerRow}>
-        <h2 className={styles.webpartTitle}>{props.webpartTitle || 'ESH Bulletin'}</h2>
-        <div className={styles.headerActions}>
-          {props.isAdmin && (
-            <button className={styles.addBtn} onClick={openAdd}>
-              <Icon iconName="Add" /> Add
+    <div className={styles.wrapper}>
+      {pageTitle && <h2 className={styles.pageTitle}>{pageTitle}</h2>}
+      <div className={styles.container}>
+        <div className={styles.headerRow}>
+          <div className={styles.headerActions}>
+            {canCreate && (
+              <button className={styles.addBtn} onClick={openAdd}>
+                <Icon iconName="Add" /> Add
+              </button>
+            )}
+            <button className={styles.viewAllBtn} onClick={() => setIsViewAllOpen(true)}>
+              View all
             </button>
-          )}
-          <button className={styles.viewAllBtn} onClick={() => setIsViewAllOpen(true)}>
-            View all
-          </button>
+          </div>
         </div>
-      </div>
 
-      {visibleAnnouncements.length === 0 ? (
-        <div className={styles.emptyState}>
-          <p>No announcements published yet.</p>
-        </div>
-      ) : (
-        <ul className={styles.itemsList}>
-          {visibleAnnouncements.map(announcement => {
-            const bodyText = stripHtml(announcement.Body ?? '');
-            return (
-              <li key={announcement.Id} className={styles.item} onClick={() => openDetails(announcement)}>
-                <div className={styles.itemThumb}>
-                  {announcement.BannerImageUrl ? (
-                    <img src={announcement.BannerImageUrl} alt="" className={styles.thumbImg} />
-                  ) : (
-                    <Icon iconName="Megaphone" />
-                  )}
-                </div>
-                <div className={styles.itemBody}>
-                  <div
-                    className={styles.itemCategory}
-                    style={{ color: getTypeColor(announcement.HighlightType) }}
-                  >
-                    {announcement.HighlightType}
+        {visibleAnnouncements.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>No announcements published yet.</p>
+          </div>
+        ) : (
+          <ul className={styles.itemsList}>
+            {visibleAnnouncements.map(announcement => {
+              const bodyText = stripHtml(announcement.Body ?? '');
+              return (
+                <li key={announcement.Id} className={styles.item} onClick={() => openDetails(announcement)}>
+                  <div className={styles.itemThumb}>
+                    {announcement.BannerImageUrl ? (
+                      <img src={announcement.BannerImageUrl} alt="" className={styles.thumbImg} />
+                    ) : (
+                      <Icon iconName="Megaphone" />
+                    )}
                   </div>
-                  <div className={styles.itemTitle}>{announcement.Title}</div>
-                  {bodyText && <div className={styles.itemDesc}>{bodyText}</div>}
-                </div>
-                <div className={styles.itemDate}>{announcement.Created ? formatDate(announcement.Created) : ''}</div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                  <div className={styles.itemBody}>
+                    <div
+                      className={styles.itemCategory}
+                      style={{ color: getTypeColor(announcement.HighlightType) }}
+                    >
+                      {announcement.HighlightType}
+                    </div>
+                    <div className={styles.itemTitle}>{announcement.Title}</div>
+                    {bodyText && <div className={styles.itemDesc}>{bodyText}</div>}
+                  </div>
+                  <div className={styles.itemDate}>{announcement.Created ? formatDate(announcement.Created) : ''}</div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
 
       {renderPanels()}
     </div>

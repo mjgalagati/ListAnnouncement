@@ -6,6 +6,7 @@ import {
   PropertyPaneTextField,
   PropertyPaneDropdown,
   PropertyPaneSlider,
+  PropertyPaneToggle,
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 
@@ -22,8 +23,13 @@ export interface IListAnnouncementWebPartProps {
   webpartTitle: string;
   sourceList: string;
   highlightTypes: string;
-  editGroup: string;
+  editorGroup: string;
+  approverGroup: string;
+  hasApproval: boolean;
   itemLimit: number;
+  reactionsListName: string;
+  commentsListName: string;
+  commentsReactionsAlias: string;
 }
 
 export default class ListAnnouncementWebPart extends BaseClientSideWebPart<IListAnnouncementWebPartProps> {
@@ -32,12 +38,14 @@ export default class ListAnnouncementWebPart extends BaseClientSideWebPart<IList
   private _siteLists: { key: string; text: string }[] = [];
   private _currentUserId: number = 0;
   private _isEditor: boolean = false;
+  private _isApprover: boolean = false;
 
   public render(): void {
     const element: React.ReactElement<IListAnnouncementsProps> = React.createElement(
       ListAnnouncements,
       {
-        webpartTitle: this.properties.webpartTitle || 'ESH Bulletin',
+        // No default — an empty title means no heading is rendered and no space is reserved for it.
+        webpartTitle: this.properties.webpartTitle || '',
         sourceList: this.properties.sourceList,
         highlightTypes: this.properties.highlightTypes || '',
         isDarkTheme: !!this.context.pageContext.legacyPageContext?.isDarkTheme,
@@ -47,8 +55,14 @@ export default class ListAnnouncementWebPart extends BaseClientSideWebPart<IList
         context: this.context,
         currentUserLogin: this.context.pageContext.user.loginName,
         currentUserId: this._currentUserId,
-        isAdmin: this._isEditor,
+        isEditor: this._isEditor,
+        isApprover: this._isApprover,
+        // Undefined on existing/older deployments — default to true so behavior doesn't change until explicitly turned off.
+        hasApproval: this.properties.hasApproval !== false,
         itemLimit: this.properties.itemLimit ?? 5,
+        reactionsListName: this.properties.reactionsListName || "MThermalReactions",
+        commentsListName: this.properties.commentsListName || "MThermalComments",
+        commentsReactionsAlias: this.properties.commentsReactionsAlias || "listannouncement",
       } as IListAnnouncementsProps
     );
 
@@ -64,7 +78,7 @@ export default class ListAnnouncementWebPart extends BaseClientSideWebPart<IList
     await Promise.all([
       this._loadSiteLists(),
       this._loadCurrentUser(),
-      this._checkEditPermission(),
+      this._checkPermissions(),
     ]);
     return super.onInit();
   }
@@ -72,8 +86,13 @@ export default class ListAnnouncementWebPart extends BaseClientSideWebPart<IList
   protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: string, newValue: string): void {
     super.onPropertyPaneFieldChanged(propertyPath, oldValue, newValue);
     if (newValue !== oldValue) {
-      if (propertyPath === 'editGroup') {
-        this._checkEditPermission().then(() => this.render()).catch(console.error);
+      if (propertyPath === 'editorGroup' || propertyPath === 'approverGroup') {
+        this._checkPermissions().then(() => this.render()).catch(console.error);
+      } else if (propertyPath === 'hasApproval') {
+        this._checkPermissions().then(() => {
+          this.render();
+          this.context.propertyPane.refresh();
+        }).catch(console.error);
       } else {
         this.render();
       }
@@ -105,18 +124,22 @@ export default class ListAnnouncementWebPart extends BaseClientSideWebPart<IList
     }
   }
 
-  private async _checkEditPermission(): Promise<void> {
-    const groupName = this.properties.editGroup?.trim();
-    if (!groupName) {
-      this._isEditor = false;
-      return;
-    }
+  private async _checkPermissions(): Promise<void> {
     try {
+      const editorGroupName = this.properties.editorGroup?.trim();
+      const approverGroupName = this.properties.approverGroup?.trim();
+      if (!editorGroupName && !approverGroupName) {
+        this._isEditor = false;
+        this._isApprover = false;
+        return;
+      }
       const userGroups = await this._sp.web.currentUser.groups();
-      this._isEditor = userGroups.some(g => g.Title === groupName);
+      this._isEditor = !!editorGroupName && userGroups.some(g => g.Title === editorGroupName);
+      this._isApprover = !!approverGroupName && userGroups.some(g => g.Title === approverGroupName);
     } catch (err) {
-      console.error("Failed to check edit group membership:", err);
+      console.error("Failed to check permissions:", err);
       this._isEditor = false;
+      this._isApprover = false;
     }
   }
 
@@ -130,8 +153,9 @@ export default class ListAnnouncementWebPart extends BaseClientSideWebPart<IList
               groupName: strings.BasicGroupName,
               groupFields: [
                 PropertyPaneTextField('webpartTitle', {
-                  label: 'Web Part Title',
-                  placeholder: 'ESH Bulletin',
+                  label: 'Page Title',
+                  description: 'Optional heading shown above the web part. Leave blank to show no heading and reserve no space for it.',
+                  placeholder: 'e.g. Announcements',
                 }),
                 PropertyPaneDropdown('sourceList', {
                   label: 'Select Announcements List',
@@ -143,10 +167,38 @@ export default class ListAnnouncementWebPart extends BaseClientSideWebPart<IList
                   description: 'Comma-separated (e.g. Safety, Environment, Health)',
                   placeholder: 'Safety, Environment, Health',
                 }),
-                PropertyPaneTextField('editGroup', {
-                  label: 'Add/Edit Permission Group',
-                  description: 'SharePoint site group name — only members can add or edit announcements',
+                PropertyPaneTextField('editorGroup', {
+                  label: 'Editor Permission Group',
+                  description: 'SharePoint site group whose members can create announcements and edit their own. Leave blank to restrict all users.',
                   placeholder: 'e.g. ESH Editors',
+                }),
+                PropertyPaneToggle('hasApproval', {
+                  label: 'Has Approval',
+                  onText: 'On',
+                  offText: 'Off',
+                  checked: this.properties.hasApproval !== false,
+                }),
+                ...(this.properties.hasApproval !== false ? [
+                  PropertyPaneTextField('approverGroup', {
+                    label: 'Approver Permission Group',
+                    description: 'SharePoint site group whose members can publish, reject, and edit any announcement.',
+                    placeholder: 'e.g. ESH Approvers',
+                  }),
+                ] : []),
+                PropertyPaneDropdown('reactionsListName', {
+                  label: 'Reactions List',
+                  options: this._siteLists,
+                  disabled: this._siteLists.length === 0,
+                }),
+                PropertyPaneDropdown('commentsListName', {
+                  label: 'Comments List',
+                  options: this._siteLists,
+                  disabled: this._siteLists.length === 0,
+                }),
+                PropertyPaneTextField('commentsReactionsAlias', {
+                  label: 'Comments/Reactions Alias',
+                  placeholder: 'e.g. listannouncement',
+                  description: 'Lowercase key that namespaces this web part\'s rows when the Comments/Reactions lists are shared across multiple web parts.',
                 }),
                 PropertyPaneSlider('itemLimit', {
                   label: 'Item List Limit',

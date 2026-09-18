@@ -11,6 +11,11 @@ export interface IListAnnouncementsProps {
   context: WebPartContext;
   currentUserLogin: string;
   currentUserId: number;
-  isAdmin: boolean;
+  isEditor: boolean;
+  isApprover: boolean;
+  hasApproval: boolean;
   itemLimit: number;
+  reactionsListName: string;
+  commentsListName: string;
+  commentsReactionsAlias: string;
 }

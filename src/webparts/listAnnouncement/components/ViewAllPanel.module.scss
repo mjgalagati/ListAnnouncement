@@ -283,6 +283,7 @@
 .statusScheduled { background: #e1f5fe; color: #01579b; }
 .statusExpired  { background: #f3f2f1; color: #605e5c; }
 .statusDraft    { background: #fff4ce; color: #8a6116; }
+.statusRejected { background: #fde7e9; color: #a4262c; }
 
 .cardInfo {
   display: flex;
@@ -315,6 +316,48 @@
   background: #fff4ce;
   color: #7a5400;
   border: 1px solid #e8a000;
+}
+
+// ─── Moderation (Approver publish/reject) ──────────────────────────────────────
+.moderationActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #edebe9;
+}
+
+.approveBtn {
+  background-color: #107c10;
+  border: none;
+  flex: 1;
+
+  &:hover { background-color: #0e6b0e; }
+  &:active { background-color: #0c5c0c; }
+}
+
+.rejectBtn {
+  background-color: #a4262c;
+  color: #fff;
+  border: none;
+  flex: 1;
+
+  &:hover { background-color: #8e1f24; color: #fff; }
+  &:active { background-color: #791a1e; color: #fff; }
+}
+
+.rejectForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #edebe9;
+}
+
+.rejectFormActions {
+  display: flex;
+  gap: 8px;
 }
 
 // ─── Empty State ──────────────────────────────────────────────────────────────

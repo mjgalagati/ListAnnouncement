@@ -1,8 +1,8 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
-    "name": "list-annoucements-client-side-solution",
-    "id": "391b37fd-54cf-4168-854e-6523499be4a9",
+    "name": "DEV-list-annoucements-client-side-solution",
+    "id": "b5f59521-1703-4354-b247-123bfa05db97",
     "version": "1.0.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
@@ -27,7 +27,7 @@
     },
     "features": [
       {
-        "title": "List Announcement Feature",
+        "title": "Development List Announcement Feature",
         "description": "The feature that activates elements of the list announcement solution.",
         "id": "e1a37bf6-6e6e-49ea-b565-4cac215f097d",
         "version": "1.0.0.0"
@@ -35,6 +35,6 @@
     ]
   },
   "paths": {
-    "zippedPackage": "solution/listannoucements.sppkg"
+    "zippedPackage": "solution/devlistannoucements.sppkg"
   }
 }

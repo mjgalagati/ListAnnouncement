@@ -20,7 +20,8 @@ export interface IListAnnouncement {
   HighlightType: string;
   Site: string;
   Priority: "Pinned" | "Not Pinned";
-  Status: "Draft" | "Published";
+  Status: "Draft" | "Published" | "Rejected";
+  RejectionReason?: string;
   TargetAudienceType?: "All" | "Specific" | "Except";
   TargetAudience?: IListAnnouncementAudience[];
   BannerImageUrl?: string;
